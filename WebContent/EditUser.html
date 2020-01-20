@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>權限編輯頁面</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="Expires" content="-1">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Cache-control" content="no-cache">
+    <meta http-equiv="Cache" content="no-cache">
+    <meta charset="UTF-8">
+    <script type='text/javascript' src="./js/angular.js"></script>
+    <style>
+        html {
+            font-size: 11px;
+        }
+
+        table {
+            width: 100%;
+            table-layout: fixed;
+            word-break: break-all;
+        }
+
+        th {
+            text-align: center;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+    </style>
+    <script type='text/javascript'>
+
+        angular.module('myApp', []).controller('myCtrl', function ($scope, $http) {
+
+            function HttpPost(params, callback) {
+                $http({
+                    method: 'POST',
+                    url: '/EditUser',
+                    params: {
+                        json: JSON.stringify(params)
+                    }
+                }).then(function (response) {
+                    if (callback) {
+                        callback(response.data);
+                    }
+                }, function (e) {
+                    alert("Server error");
+                });
+            };
+
+            class Member {
+
+                #ID;
+                #NAME;
+                #NICKNAME;
+                #ACCOUNT;
+                #TYPE;
+
+                constructor(id, name, nickname, account, type) {
+                    this.#ID = id;
+                    this.#NAME = name;
+                    this.#NICKNAME = nickname;
+                    this.#ACCOUNT = account;
+                    this.#TYPE = type;
+                }
+
+                get ID() {
+                    return this.#ID;
+                }
+
+                get Name() {
+                    return this.#NAME;
+                }
+
+                get NickName() {
+                    return this.#NICKNAME;
+                }
+
+                get Account() {
+                    return this.#ACCOUNT;
+                }
+
+                get Type() {
+                    return this.#TYPE;
+                }
+
+                set Type(t) {
+                    if(t === 'STUDENT' || t === 'TEACHER'){
+                        if(this.#ACCOUNT == '' || !this.#ACCOUNT){
+                            alert('該帳號尚未綁定校園帳號，無法設定該身分權限');
+                            return;
+                        }
+                    }
+                    HttpPost({
+                        TYPE: "TYPE",
+                        DATA: this.#ID,
+                        DATA2: t
+                    }, $scope.getMember);
+                }
+
+            }
+
+            $scope.members = [];
+            $scope.getMember = function () {
+                HttpPost({
+                    TYPE: "MEMBER"
+                }, function (data) {
+                    $scope.members = data.map(member => new Member(member.ID, member.NAME, member.NAMENICK, member.ACCOUNT, member.TYPE));
+                });
+            };
+        });
+    </script>
+</head>
+<body>
+<div ng-app="myApp" ng-controller="myCtrl" ng-init="getMember()" style="max-width: 100%; text-align: center;">
+    <table>
+        <tr>
+            <th style="background: #cccccc;">使用者名單</th>
+        </tr>
+        <tr>
+            <th>
+                <div style="width: 100%; height: 650px; overflow: auto;">
+                    <table ng-repeat="member in members" style="background: #96f226; margin-bottom: 10px;">
+                        <tr>
+                            <th colspan="1">姓名</th>
+                            <th colspan="5">{{member.Name}}</th>
+                        </tr>
+                        <tr>
+                            <th colspan="1">暱稱</th>
+                            <th colspan="5">{{member.NickName}}</th>
+                        </tr>
+                        <tr>
+                            <th colspan="1">帳號</th>
+                            <th colspan="5">{{member.Account}}</th>
+                        </tr>
+                        <tr>
+                            <th colspan="1">權限</th>
+                            <th colspan="5">
+                                <select ng-model="member.Type" style="width: 100%; height: 100%; border: 0;">
+                                    <option value="STUDENT">學生</option>
+                                    <option value="TEACHER">教師</option>
+                                    <option value="GUEST">來賓</option>
+                                    <option value="ADMIN">管理</option>
+                                </select>
+                            </th>
+                        </tr>
+                    </table>
+                </div>
+            </th>
+        </tr>
+    </table>
+</div>
+</body>
+</html>

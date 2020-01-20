@@ -1,0 +1,518 @@
+<html>
+<head>
+    <title>編輯課程頁面</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="Expires" content="-1">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Cache-control" content="no-cache">
+    <meta http-equiv="Cache" content="no-cache">
+    <script type='text/javascript' src="./js/angular.js"></script>
+    <script type='text/javascript' src='http://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.js'></script>
+    <script type='text/javascript' src='https://code.jquery.com/jquery-3.4.1.min.js'></script>
+    <script type='text/javascript' src='jquery-ui-1.12.1/jquery-ui.js'></script>
+    <script type='text/javascript' src='jquery.datepick.package-5.1.0/js/jquery.plugin.js'></script>
+    <script type='text/javascript' src='jquery.datepick.package-5.1.0/js/jquery.datepick.js'></script>
+    <script type='text/javascript' src='jquery.datepick.package-5.1.0/js/jquery.datepick-zh-TW.js'></script>
+    <script type='text/javascript' src='clockpicker/dist/jquery-clockpicker.js'></script>
+    <link rel="stylesheet" type="text/css" href="clockpicker/dist/jquery-clockpicker.css">
+    <link rel="stylesheet" type="text/css" href="jquery.datepick.package-5.1.0/css/jquery.datepick.css">
+    <link rel="stylesheet" href="jquery-ui-1.12.1/jquery-ui.css">
+    <script type='text/javascript'>
+        $(function () {
+            $("#datepicker").datepick({
+                dateFormat: "yyyy/mm/dd",
+                minDate: "0",
+                multiSelect: 999,
+                showTrigger: '#calImg',
+                monthsToShow: 2,
+                showButtonPanel: true
+            });
+            $('#startTime').clockpicker({
+                placement: 'bottom',
+                align: 'left',
+                donetext: '完成',
+                autoclose: false
+            });
+            $('#endTime').clockpicker({
+                placement: 'bottom',
+                align: 'right',
+                donetext: '完成',
+                autoclose: false
+            });
+        });
+
+        angular.module('myApp', []).controller('myCtrl', function ($scope, $http) {
+
+            function HttpPost(params, callback) {
+                $http({
+                    method: 'POST',
+                    url: '/EditCourse',
+                    params: {
+                        json: JSON.stringify(params)
+                    }
+                }).then(function (response) {
+                    if (callback) {
+                        callback(response.data);
+                    }
+                }, function (e) {
+                    // alert("Server error");
+                });
+            };
+
+            function getCourseId() {
+                return new URL(window.location.href).searchParams.get('CourseId');
+            }
+
+            class Member {
+
+                constructor(id, userid, name, type) {
+                    this.Id = id;
+                    this.UserId = userid;
+                    this.Name = name;
+                    this.Type = type;
+                }
+
+                remove() {
+                    if (this.Type != 'NONE' && this.Id != -1) {
+                        HttpPost({
+                            TYPE: "MEMBER",
+                            DATA: "REMOVE",
+                            DATA2: this.Id
+                        }, $scope.getMember);
+                    }
+                }
+
+                add(type) {
+                    if (this.Type == 'NONE' && this.Id == -1) {
+                        HttpPost({
+                            TYPE: "MEMBER",
+                            DATA: "ADD",
+                            DATA2: this.UserId,
+                            DATA3: type,
+                            DATA4: getCourseId()
+                        }, $scope.getMember);
+                    }
+                }
+
+            }
+
+            class CourseDate {
+                #START;
+                #END;
+                #ID;
+
+                //id,start,end
+                //start,endd
+                constructor(var1, var2, var3) {
+                    if (arguments.length == 3) {
+                        this.#ID = var1;
+                        this.#START = var2;
+                        this.#END = var3;
+                    } else {
+                        this.#ID = -1;
+                        this.#START = var1;
+                        this.#END = var2;
+                    }
+                }
+
+                get getID() {
+                    return this.#ID;
+                }
+
+                get getDate() {
+                    let month = this.#START.getMonth() + 1;
+                    if (month < 10) {
+                        month = '0' + month;
+                    }
+                    let date = this.#START.getDate();
+                    if (date < 10) {
+                        date = '0' + date;
+                    }
+                    return this.#START.getFullYear() + '/' + month + '/' + date;
+                }
+
+                get getStart() {
+                    let hours = this.#START.getHours();
+                    if (hours < 10) {
+                        hours = '0' + hours;
+                    }
+                    let minutes = this.#START.getMinutes();
+                    if (minutes < 10) {
+                        minutes = '0' + minutes;
+                    }
+                    return hours + ":" + minutes;
+                }
+
+                get getEnd() {
+                    let hours = this.#END.getHours();
+                    if (hours < 10) {
+                        hours = '0' + hours;
+                    }
+                    let minutes = this.#END.getMinutes();
+                    if (minutes < 10) {
+                        minutes = '0' + minutes;
+                    }
+                    return hours + ":" + minutes;
+                }
+
+                remove() {
+                    if (this.timeout()) {
+                        alert("該時間已經過期，無法刪除");
+                        return;
+                    }
+                    if (confirm("確定要刪除\n" + "日期: " + this.getDate + "\n時間: " + this.getStart + " - " + this.getEnd)) {
+                        HttpPost({
+                            TYPE: "DATE",
+                            DATA: "REMOVE",
+                            DATA2: this.#ID,
+                        }, $scope.getDate);
+                    }
+                }
+
+                timeout() {
+                    return new Date().getTime() > this.#START.getTime();
+                }
+
+                get toData() {
+                    return {
+                        START: this.#START.getTime(),
+                        END: this.#END.getTime()
+                    };
+                }
+
+                get getTime() {
+                    return this.#START.getTime();
+                }
+
+            }
+
+            $scope.getMemberByType = function (type) {
+                return $scope.members.filter(member => member.Type == type);
+            };
+            $scope.add = function (member, type) {
+                if (!member) {
+                    alert('尚未選擇');
+                    return;
+                }
+                const UserId = JSON.parse(member).UserId;
+                $scope.members.find(member => member.UserId === UserId).add(type);
+            };
+            $scope.addDate = function () {
+                const days = $('#datepicker').datepick('getDate');
+                if (days.length <= 0) {
+                    alert("尚未選擇日期");
+                    return;
+                }
+                let start = $('#startTime').val();
+                if (start === '') {
+                    alert("尚未選擇開始時間");
+                    return;
+                }
+                start = start.split(":");
+                let end = $('#endTime').val();
+                if (end === '') {
+                    alert("尚未選擇結束時間");
+                    return;
+                }
+                end = end.split(":");
+                const newDates = [];
+                const now = new Date();
+                days.forEach(day => {
+                    const startDate = new Date(day.getTime());
+                    startDate.setHours(start[0]);
+                    startDate.setMinutes(start[1]);
+                    const endDate = new Date(day.getTime());
+                    endDate.setHours(end[0]);
+                    endDate.setMinutes(end[1]);
+                    if (now.getTime() >= startDate.getTime()) {
+                        return;
+                    }
+                    if (endDate.getTime() <= startDate.getTime()) {
+                        return;
+                    }
+                    newDates.push(new CourseDate(startDate, endDate).toData);
+                })
+                HttpPost({
+                    TYPE: "DATE",
+                    DATA: "ADD",
+                    DATA2: newDates,
+                    DATA3: getCourseId()
+                }, function (data) {
+                    $('#datepicker').val(null);
+                    $('#startTime').val(null);
+                    $('#endTime').val(null);
+                    $scope.getDate();
+                });
+            };
+            $scope.members = [];
+            $scope.name = "";
+            $scope.depiction = "";
+            $scope.classroom = "";
+            $scope.dates = [];
+            $scope.classrooms = [];
+            $scope.change = function () {
+                HttpPost({
+                    TYPE: "CLASSSROOM",
+                    DATA: getCourseId(),
+                    DATA2: $scope.classroom
+                }, function () {
+                    $scope.getClassroomList();
+                    $scope.getClassroom();
+                });
+            };
+            $scope.update = function (type) {
+                HttpPost({
+                    TYPE: type == "NAME" ? "NAME" : "DEPICTION",
+                    DATA: getCourseId(),
+                    DATA2: type == "NAME" ? $scope.name : $scope.depiction
+                }, type == "NAME" ? $scope.getName : $scope.getDepiction);
+            };
+            $scope.getName = function () {
+                HttpPost({
+                    TYPE: "GET",
+                    DATA: "NAME",
+                    DATA2: getCourseId()
+                }, function (data) {
+                    $scope.name = data;
+                });
+            };
+            $scope.getDepiction = function () {
+                HttpPost({
+                    TYPE: "GET",
+                    DATA: "DEPICTION",
+                    DATA2: getCourseId()
+                }, function (data) {
+                    $scope.depiction = data;
+                });
+            };
+            $scope.getClassroomList = function () {
+                HttpPost({
+                    TYPE: "GET",
+                    DATA: "CLASSROOM_LIST"
+                }, function (data) {
+                    $scope.classrooms = data;
+                });
+            };
+            $scope.getClassroom = function () {
+                HttpPost({
+                    TYPE: "GET",
+                    DATA: "CLASSROOM",
+                    DATA2: getCourseId()
+                }, function (data) {
+                    $scope.classroom = data;
+                });
+            };
+            $scope.getDate = function () {
+                HttpPost({
+                    TYPE: "GET",
+                    DATA: "DATE",
+                    DATA2: getCourseId()
+                }, function (data) {
+                    $scope.dates = data.map(date => {
+                        const start = new Date(date.START);
+                        const end = new Date(date.END);
+                        return new CourseDate(date.ID, start, end);
+                    });
+                    $scope.dates.sort(function (a, b) {
+                        return a.getTime - b.getTime
+                    });
+                });
+            };
+            $scope.getMember = function () {
+                HttpPost({
+                    TYPE: "GET",
+                    DATA: "MEMEBER",
+                    DATA2: getCourseId()
+                }, function (data) {
+                    $scope.members = data.map(member => new Member(member.ID, member.USERID, member.NAME, member.TYPE));
+                });
+            };
+            $scope.init = function () {
+                $scope.getName();
+                $scope.getDepiction();
+                $scope.getClassroomList();
+                $scope.getClassroom();
+                $scope.getDate();
+                $scope.getMember();
+            };
+        });
+    </script>
+    <style>
+        html {
+            font-size: 11px;
+        }
+
+        table {
+            width: 100%;
+            table-layout: fixed;
+            word-break: break-all;
+        }
+
+        div {
+            max-width: 100%;
+            text-align: center;
+        }
+
+        th {
+            text-align: center;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+    </style>
+</head>
+<body>
+<div ng-app="myApp" ng-controller="myCtrl" ng-init="init()">
+    <table>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">課程名稱</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <input ng-model="name" style="width:100%; text-align: center; border: 0;">
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <input ng-click="update('NAME')" type="button" value="更新課程名稱" style="width:100%; font-weight: bold;">
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">教室編號</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <select ng-change="change()" ng-model="classroom" style="width: 100%; height: 100%; border: 0;"> 　
+                    <option ng-repeat="classroom in classrooms" ng-selected="cr == classroom" value="{{classroom}}">
+                        {{classroom}}
+                    </option>
+                </select>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">課程敘述</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <textarea ng-model="depiction"
+                          style="width: 100%; height: 100px; border: 0; overflow: auto; resize: none;"></textarea>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <input ng-click="update('DEPICTION')" type="button" value="更新課程敘述"
+                       style="width:100%; font-weight: bold;">
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">日期選擇</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <input type="text" id="datepicker" style="width: 100%; text-align: center; border: 0;">
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">時間選擇</th>
+        </tr>
+        <tr>
+            <th colspan="3">
+                <input style="width:100%; text-align: center; border: 0;" id="startTime"
+                       placeholder="開始時間">
+            </th>
+            <th colspan="1">至</th>
+            <th colspan="3">
+                <input style="width:100%; text-align: center; border: 0;" id="endTime"
+                       placeholder="結束時間">
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <input type="button" ng-click="addDate()" style="width: 100%; font-weight: bold;" value="新增時間">
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <div style="width: 100%; height: 100px; overflow: auto;">
+                    <div ng-repeat="date in dates"
+                         style="width: auto; background: {{date.timeout() ? '#cccccc' : '#96f226'}}; margin: 3px; position: relative; border: solid 1px;">
+                        <div style="width: auto; text-align: left; padding-left: 10px; padding-top: 5px; padding-bottom: 5px;">
+                            日期: {{date.getDate}} 時間:
+                            {{date.getStart}} - {{date.getEnd}}
+                        </div>
+                        <div ng-click="date.remove()"
+                             style="position: absolute; top: 5px; right: 10px; cursor: pointer;">
+                            X
+                        </div>
+                    </div>
+                </div>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">教師名單</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <div style="width: 100%; height: 100px; overflow: auto;">
+                    <div ng-repeat="member in getMemberByType('TEACHER')"
+                         style="width: auto; background: #96f226; margin: 3px; position: relative; border: solid 1px;">
+                        <div style="width: auto; text-align: left; padding-left: 10px; padding-top: 5px; padding-bottom: 5px;">
+                            {{member.Name}}
+                        </div>
+                        <div ng-click="member.remove();"
+                             style="position: absolute; top: 5px; right: 10px; cursor: pointer;">
+                            X
+                        </div>
+                    </div>
+                </div>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="5">
+                <select ng-model="teacher" style="width: 100%; height: 100%; border: 0;"> 　
+                    <option ng-repeat="member in getMemberByType('NONE')" value="{{member}}">{{member.Name}}
+                    </option>
+                </select>
+            </th>
+            <th colspan="2">
+                <input ng-click="add(teacher,'TEACHER')" type="button" value="新增教師"
+                       style="width:100%; font-weight: bold;">
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">學生名單</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <div style="width: 100%; height: 200px; overflow: auto;">
+                    <div ng-repeat="member in getMemberByType('STUDENT')"
+                         style="width: auto; background: #96f226; margin: 3px; position: relative; border: solid 1px;">
+                        <div style="width: auto; text-align: left; padding-left: 10px; padding-top: 5px; padding-bottom: 5px;">
+                            {{member.Name}}
+                        </div>
+                        <div ng-click="member.remove();"
+                             style="position: absolute; top: 5px; right: 10px; cursor: pointer;">
+                            X
+                        </div>
+                    </div>
+                </div>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="5">
+                <select ng-model="student" style="width: 100%; height: 100%; border: 0;"> 　
+                    <option ng-repeat="member in getMemberByType('NONE')" value="{{member}}">{{member.Name}}</option>
+                </select>
+            </th>
+            <th colspan="2">
+                <input ng-click="add(student,'STUDENT')" type="button" value="新增學生"
+                       style="width:100%; font-weight: bold;">
+            </th>
+        </tr>
+    </table>
+</div>
+</body>
+</html>                                       

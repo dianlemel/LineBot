@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Beacon設定頁面</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="Expires" content="-1">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Cache-control" content="no-cache">
+    <meta http-equiv="Cache" content="no-cache">
+    <script type='text/javascript' src="./js/angular.js"></script>
+    <style>
+        html {
+            font-size: 11px;
+        }
+
+        table {
+            width: 100%;
+            table-layout: fixed;
+            word-break: break-all;
+        }
+
+        div {
+            max-width: 100%;
+            text-align: center;
+        }
+
+        th {
+            text-align: center;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+    </style>
+    <script type='text/javascript'>
+        var app = angular.module('myApp', []);
+        app.controller('myCtrl', function ($scope, $http) {
+            function httpError(data) {
+                console.log("Server error");
+            }
+
+            $scope.createMode = false;
+            $scope.searchMode = true;
+            $scope.changeMode = function (create, search) {
+                $scope.createMode = !create;
+                $scope.searchMode = !search;
+                if (create) {
+                    $scope.classroom = '';
+                    $scope.beaconType = '';
+                    $scope.hwid = '';
+                }
+                if (search) {
+                    $scope.beacons = [];
+                    $http({
+                        method: 'POST',
+                        url: '/BeaconSetting',
+                        params: {
+                            json: JSON.stringify({
+                                TYPE: "GET_CLASS_ROOM"
+                            })
+                        }
+                    }).then(function (response) {
+                        $scope.classrooms = response.data;
+                    }, httpError);
+                }
+            };
+            $scope.create = function () {
+                var classRoom = $scope.classroom;
+                var beaconType = $scope.beaconType;
+                var hwid = $scope.hwid;
+                if (!classRoom) {
+                    alert("尚未輸入教室編號");
+                    return;
+                }
+                if (!hwid) {
+                    alert("尚未輸入Beacon HWID");
+                    return;
+                }
+                if (!beaconType) {
+                    alert("尚未選擇Beacon種類");
+                    return;
+                }
+                $http({
+                    method: 'POST',
+                    url: '/BeaconSetting',
+                    params: {
+                        json: JSON.stringify({
+                            TYPE: "CREATE",
+                            CLASS_ROOM: classRoom,
+                            BEACON_TYPE: beaconType,
+                            HWID: hwid
+                        })
+                    }
+                }).then(function (response) {
+                    if (response.data === 'ok') {
+                        alert("建立完成");
+                        $scope.classroom = '';
+                        $scope.beaconType = '';
+                        $scope.hwid = '';
+                    }
+                }, httpError);
+            };
+            $scope.search = function () {
+                $http({
+                    method: 'POST',
+                    url: '/BeaconSetting',
+                    params: {
+                        json: JSON.stringify({
+                            TYPE: "GET_BEACON",
+                            CLASS_ROOM: $scope.searchClassRoom
+                        })
+                    }
+                }).then(function (response) {
+                    $scope.beacons = response.data;
+                }, httpError);
+            };
+            $scope.delBeacon = function (beacon) {
+                $http({
+                    method: 'POST',
+                    url: '/BeaconSetting',
+                    params: {
+                        json: JSON.stringify({
+                            TYPE: "DELETE_BEACON",
+                            ID: beacon.ID
+                        })
+                    }
+                }).then(function (response) {
+                    if (response.data === 'ok') {
+                        alert("刪除成功");
+                        var arr = $scope.beacons;
+                        for(var i = 0 ; i < arr.length ; i++){
+                            if(arr[i].ID === beacon.ID){
+                                arr.splice(i, 1);
+                                break;
+                            }
+                        }
+                    }
+                }, httpError);
+            };
+            $scope.beacons = [];
+        });
+    </script>
+</head>
+<body>
+<div ng-app="myApp" ng-controller="myCtrl">
+    <table>
+        <tr>
+            <th colspan="2" style="background: #cccccc;">選項</th>
+        </tr>
+        <tr>
+            <th colspan="1">
+                <input type="radio" name="rule"
+                       ng-click="changeMode(true,false)" checked="true">建立
+            </th>
+            <th colspan="1">
+                <input type="radio" name="rule"
+                       ng-click="changeMode(false,true)">查詢
+            </th>
+        </tr>
+        <tr ng-hide="searchMode">
+            <th colspan="2" style="background: #cccccc;">教室編號</th>
+        </tr>
+        <tr ng-hide="searchMode">
+            <th colspan="1">
+                <select ng-model="searchClassRoom" style="width: 100%; height: 100%; border: 0;">
+                    <option ng-repeat="classroom in classrooms" value="{{classroom}}">{{classroom}}</option>
+                </select>
+            </th>
+            <th colspan="1">
+                <input ng-click="search()" type="button" value="查詢" style="width:100%; font-weight: bold;">
+            </th>
+        </tr>
+        <tr ng-hide="searchMode">
+            <th colspan="2">
+                <div style="width: 100%; height: 100px; overflow: auto;">
+                    <div ng-repeat="beacon in beacons"
+                         style="width: auto; background: #96f226; margin: 3px; position: relative; border: solid 1px;">
+                        <div style="width: auto; text-align: left; padding-left: 10px; padding-top: 5px; padding-bottom: 5px;">
+                            <div style="width: 100%; text-align: left;">
+                                教室編號: {{beacon.CLASS_ROOM}}
+                            </div>
+                            <div style="width: 100%; text-align: left;">
+                                HWID: {{beacon.HWID}} , 種類: {{beacon.TYPE === 'A' ? '持續開啟':'頻率性開啟'}}
+                            </div>
+                        </div>
+                        <div ng-click="delBeacon(beacon)" style="position: absolute; top: 25%; right: 5px;">
+                            X
+                        </div>
+                    </div>
+                </div>
+            </th>
+        </tr>
+
+        <tr ng-hide="createMode">
+            <th colspan="2" style="background: #cccccc;">教室編號</th>
+        </tr>
+        <th ng-hide="createMode" colspan="2">
+            <input ng-model="classroom" style="width:100%; text-align: center; border: 0;">
+        </th>
+        <tr ng-hide="createMode">
+            <th colspan="2" style="background: #cccccc;">Beacon HWID</th>
+        </tr>
+        <th ng-hide="createMode" colspan="2">
+            <input ng-model="hwid" style="width:100%; text-align: center; border: 0;">
+        </th>
+        <tr ng-hide="createMode">
+            <th colspan="2" style="background: #cccccc;">Beacon種類</th>
+        </tr>
+        <tr ng-hide="createMode">
+            <th colspan="2">
+                <select ng-model="beaconType" style="width: 100%; height: 100%; border: 0;">
+                    <option value="REGULAR">持續開啟</option>
+                    <option value="IRREGULAR">頻率性開啟</option>
+                </select>
+            </th>
+        </tr>
+        <tr ng-hide="createMode">
+            <th colspan="2">
+                <input ng-click="create()" type="button" value="建立" style="width:100%; font-weight: bold;">
+            </th>
+        </tr>
+    </table>
+</div>
+</body>
+</html>

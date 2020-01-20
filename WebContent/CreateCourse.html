@@ -1,0 +1,582 @@
+<html>
+<head>
+    <title>建立課程頁面</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="Expires" content="-1">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Cache-control" content="no-cache">
+    <meta http-equiv="Cache" content="no-cache">
+    <script type='text/javascript' src="./js/angular.js"></script>
+    <script type='text/javascript' src='http://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.js'></script>
+    <script type='text/javascript' src='https://code.jquery.com/jquery-3.4.1.min.js'></script>
+    <script type='text/javascript' src='jquery-ui-1.12.1/jquery-ui.min.js'></script>
+    <script type='text/javascript' src='jquery.datepick.package-5.1.0/js/jquery.plugin.js'></script>
+    <script type='text/javascript' src='jquery.datepick.package-5.1.0/js/jquery.datepick.js'></script>
+    <script type='text/javascript' src='jquery.datepick.package-5.1.0/js/jquery.datepick-zh-TW.js'></script>
+    <script type='text/javascript' src='clockpicker/dist/jquery-clockpicker.js'></script>
+    <link rel="stylesheet" type="text/css" href="clockpicker/dist/jquery-clockpicker.css">
+    <link rel="stylesheet" type="text/css" href="jquery.datepick.package-5.1.0/css/jquery.datepick.css">
+    <link rel="stylesheet" href="jquery-ui-1.12.1/jquery-ui.min.css">
+    <script type='text/javascript'>
+        function fail(e) {
+            alert("failure message: " + e);
+        }
+
+        $(function () {
+            $("#regular_datepicker").datepick({
+                dateFormat: "yyyy/mm/dd",
+                minDate: "0",
+                rangeSelect: true,
+                showTrigger: '#calImg',
+                monthsToShow: 2,
+                showButtonPanel: true
+            });
+            $("#irregular_datepicker").datepick({
+                dateFormat: "yyyy/mm/dd",
+                minDate: "0",
+                multiSelect: 999,
+                showTrigger: '#calImg',
+                monthsToShow: 2,
+                showButtonPanel: true
+            });
+            $('#startTime').clockpicker({
+                placement: 'bottom',
+                align: 'left',
+                donetext: '完成',
+                autoclose: false
+            });
+            $('#endTime').clockpicker({
+                placement: 'bottom',
+                align: 'right',
+                donetext: '完成',
+                autoclose: false
+            });
+        });
+        var app = angular.module('myApp', []);
+        app.controller('myCtrl', function ($scope, $http) {
+            function httpError(data) {
+                console.log("Server error");
+            }
+
+            $scope.regular = true;
+            $scope.irregular = true;
+            $scope.time = true;
+            $scope.send = function () {
+                var sendData = {};
+                var name = $scope.name;
+                var depiction = $scope.depiction;
+                var type = $scope.type;
+                var classroom = $scope.selectClassRoom;
+                if (!name) {
+                    alert('尚未輸入課程名稱');
+                    return;
+                }
+                if (!classroom) {
+                    alert('尚未選擇教室');
+                    return;
+                }
+                if (!depiction) {
+                    alert('尚未輸入課程敘述');
+                    return;
+                }
+                if (!type) {
+                    alert('尚未選擇日期規則');
+                    return;
+                }
+                sendData['CLASSROOM'] = classroom;
+                sendData['NAME'] = name;
+                sendData['DEPICTION'] = depiction;
+                switch (type) {
+                    case 'regular':
+                        var date = $('#regular_datepicker').datepick('getDate');
+                        var week = $scope.week;
+                        var startDate = date[0];
+                        var endDate = date[1];
+                        var startTime = $('#startTime').val();
+                        var endTime = $('#endTime').val();
+                        if (date.length === 0) {
+                            alert('尚未選擇日期');
+                            return;
+                        }
+                        if (date[0].getTime() === date[1].getTime()) {
+                            alert('範圍不能重復');
+                            return;
+                        }
+                        if (!week) {
+                            alert('尚未選擇星期');
+                            return;
+                        }
+                        if (!startTime) {
+                            alert("尚未選擇開始時間");
+                            return;
+                        }
+                        if (!endTime) {
+                            alert("尚未選擇結束時間");
+                            return;
+                        }
+                        startTime = startTime.split(":");
+                        endTime = endTime.split(":");
+                        var dates = [];
+                        while (startDate.getTime() <= endDate.getTime()) {
+                            if (startDate.getDay() == week) {
+                                var start = new Date(startDate.getTime());
+                                start.setHours(startTime[0]);
+                                start.setMinutes(startTime[1]);
+                                var end = new Date(startDate.getTime());
+                                end.setHours(endTime[0]);
+                                end.setMinutes(endTime[1]);
+                                dates.push({
+                                    START: start.getTime(),
+                                    END: end.getTime()
+                                });
+                            }
+                            startDate.setDate(startDate.getDate() + 1);
+                        }
+                        if (dates.length === 0) {
+                            alert('至少要有一天符合條件');
+                            return;
+                        }
+                        sendData['DATE'] = dates;
+                        break;
+                    case 'irregular':
+                        var da = $scope.dates;
+                        if (da.length <= 0) {
+                            alert("至少新增一天");
+                            return;
+                        }
+                        var dates = [];
+                        for (var i = 0; i < da.length; i++) {
+                            var d = da[i];
+                            var start = new Date(d.DATE.getTime());
+                            start.setHours(d.START.HOURS);
+                            start.setMinutes(d.START.MINUTES);
+                            var end = new Date(d.DATE.getTime());
+                            end.setHours(d.END.HOURS);
+                            end.setMinutes(d.END.MINUTES);
+                            dates.push({
+                                START: start.getTime(),
+                                END: end.getTime()
+                            })
+                        }
+                        sendData['DATE'] = dates;
+                        break;
+                }
+                var students = $scope.students;
+                var teachers = $scope.teachers;
+                if (students.length <= 0) {
+                    alert('至少新增一位學生');
+                    return;
+                }
+                if (teachers.length <= 0) {
+                    alert('至少新增一位教師');
+                    return;
+                }
+                var st = [];
+                var te = [];
+                for(var i = 0 ; i < students.length ; i++){
+                    st.push(students[i].ID);
+                }
+                for(var i = 0 ; i < teachers.length ; i++){
+                    te.push(teachers[i].ID);
+                }
+                sendData['STUDENTS'] = st;
+                sendData['TEACHERS'] = te;
+                console.log(sendData);
+                $http({
+                    method: 'POST',
+                    url: '/CreateCourse',
+                    params: {
+                        json: JSON.stringify({
+                            TYPE: "CREATE",
+                            DATA: sendData
+                        })
+                    }
+                }).then(function (response) {
+                    if (response.data === 'ok') {
+                        alert('建立成功');
+                        $scope.name = '';
+                        $scope.depiction = '';
+                        $scope.type = '';
+                        $scope.selectClassRoom = '';
+                        $scope.students = [];
+                        $scope.teachers = [];
+                        $scope.dates = [];
+                        $scope.getdate();
+                    }
+                }, httpError);
+            };
+            $scope.addStudent = function () {
+                var student = $scope.selectStudent;
+                if (!student) {
+                    return;
+                }
+                var select = JSON.parse(student);
+                if (!select) {
+                    alert("請輸入學生帳號");
+                    return;
+                }
+                var arr = $scope.students;
+                for (var i = 0; i < arr.length; i++) {
+                    if (arr[i].ID === select) {
+                        alert("該學生帳號已經在清單中");
+                        return;
+                    }
+                }
+                arr.push(select);
+                var list = $scope.list;
+                for (var i = 0; i < list.length; i++) {
+                    if (list[i].ID === select.ID) {
+                        list.splice(i, 1);
+                        break;
+                    }
+                }
+            };
+            $scope.delStudent = function (student) {
+                var arr = $scope.students;
+                for (var i = 0; i < arr.length; i++) {
+                    if (arr[i].ID === student.ID) {
+                        arr.splice(i, 1);
+                        break;
+                    }
+                }
+                $scope.list.push(student);
+            };
+            $scope.addTeacher = function () {
+                var teacher = $scope.selectTeacher;
+                if (!teacher) {
+                    return;
+                }
+                var select = JSON.parse(teacher);
+                if (!select) {
+                    alert("尚未選擇教師帳號");
+                    return;
+                }
+                var arr = $scope.teachers;
+                for (var i = 0; i < arr.length; i++) {
+                    if (arr[i].ID === select.ID) {
+                        alert("該教師帳號已經在清單中");
+                        return;
+                    }
+                }
+                arr.push(select);
+                var list = $scope.list;
+                for (var i = 0; i < list.length; i++) {
+                    if (list[i].ID === select.ID) {
+                        list.splice(i, 1);
+                        break;
+                    }
+                }
+            };
+            $scope.delTeacher = function (teacher) {
+                var arr = $scope.teachers;
+                for (var i = 0; i < arr.length; i++) {
+                    if (arr[i].ID === teacher.ID) {
+                        arr.splice(i, 1);
+                        break;
+                    }
+                }
+                $scope.list.push(teacher);
+            };
+            $scope.delDate = function (del) {
+                var dates = $scope.dates;
+                for (var i = 0; i < dates.length; i++) {
+                    if (dates[i].DATE.getTime() != del.DATE.getTime()) {
+                        continue;
+                    }
+                    if (dates[i].START.HOURS != del.START.HOURS) {
+                        continue;
+                    }
+                    if (dates[i].START.MINUTES != del.START.MINUTES) {
+                        continue;
+                    }
+                    if (dates[i].END.HOURS != del.END.HOURS) {
+                        continue;
+                    }
+                    if (dates[i].END.MINUTES != del.END.MINUTES) {
+                        continue;
+                    }
+                    dates.splice(i, 1);
+                    break;
+                }
+            };
+            $scope.addDate = function () {
+                var days = $('#irregular_datepicker').datepick('getDate');
+                if (days.length <= 0) {
+                    alert("尚未選擇日期");
+                    return;
+                }
+                var start = $('#startTime').val();
+                if (start === '') {
+                    alert("尚未選擇開始時間");
+                    return;
+                }
+                start = start.split(":");
+                var end = $('#endTime').val();
+                if (end === '') {
+                    alert("尚未選擇結束時間");
+                    return;
+                }
+                end = end.split(":");
+                for (var i = 0; i < days.length; i++) {
+                    $scope.dates.push({
+                        DATE: days[i],
+                        START: {
+                            HOURS: start[0],
+                            MINUTES: start[1]
+                        },
+                        END: {
+                            HOURS: end[0],
+                            MINUTES: end[1]
+                        }
+                    });
+                }
+                $('#irregular_datepicker').val(null);
+                $('#startTime').val(null);
+                $('#endTime').val(null);
+            };
+            $scope.list = [];
+            $scope.dates = [];
+            $scope.teachers = [];
+            $scope.students = [];
+            $scope.classrooms = [];
+            $scope.getdate = function(){
+                $http({
+                    method: 'POST',
+                    url: '/CreateCourse',
+                    params: {
+                        json: JSON.stringify({
+                            TYPE: "GET_CLASS_ROOM"
+                        })
+                    }
+                }).then(function (response) {
+                    $scope.classrooms = response.data;
+                }, httpError);
+                $http({
+                    method: 'POST',
+                    url: '/CreateCourse',
+                    params: {
+                        json: JSON.stringify({
+                            TYPE: "GET_USERS"
+                        })
+                    }
+                }).then(function (response) {
+                    $scope.list = response.data;
+                }, httpError);
+            }
+            $scope.getdate();
+        });
+    </script>
+    <style>
+        html {
+            font-size: 11px;
+        }
+
+        table {
+            width: 100%;
+            table-layout: fixed;
+            word-break: break-all;
+        }
+
+        div {
+            max-width: 100%;
+            text-align: center;
+        }
+
+        th {
+            text-align: center;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+    </style>
+</head>
+<body>
+<div ng-app="myApp" ng-controller="myCtrl">
+    <table>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">課程名稱</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <input ng-model="name" style="width:100%; text-align: center; border: 0;">
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">教室編號</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <select ng-model="selectClassRoom" style="width: 100%; height: 100%; border: 0;"> 　
+                    <option ng-repeat="classroom in classrooms" value="{{classroom}}">{{classroom}}</option>
+                </select>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">課程敘述</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <textarea ng-model="depiction"
+                          style="width: 100%; height: 100px; border: 0; overflow: auto; resize: none;"></textarea>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">日期規則</th>
+        </tr>
+        <tr>
+            <th colspan="3">
+                <input type="radio" name="rule"
+                       ng-click="type = 'regular'; regular = false; irregular = true; time = false;">規律
+            </th>
+            <th colspan="4">
+                <input type="radio" name="rule"
+                       ng-click="type = 'irregular'; regular = true; irregular = false; time = false;">無規律
+            </th>
+        </tr>
+        <tr ng-hide="regular">
+            <th colspan="7" style="background: #cccccc;">日期範圍</th>
+        </tr>
+        <tr ng-hide="regular">
+            <th colspan="7">
+                <input type="text" id="regular_datepicker" style="width: 100%; text-align: center; border: 0;">
+            </th>
+        </tr>
+        <tr ng-hide="regular">
+            <th colspan="7" style="background: #cccccc;">固定星期</th>
+        </tr>
+        <tr ng-hide="regular">
+            <th>
+                <input type="radio" name="week" ng-value=1 ng-model="week" value=1>一
+            </th>
+            <th>
+                <input type="radio" name="week" ng-value=2 ng-model="week" value=2>二
+            </th>
+            <th>
+                <input type="radio" name="week" ng-value=3 ng-model="week" value=3>三
+            </th>
+            <th>
+                <input type="radio" name="week" ng-value=4 ng-model="week" value=4>四
+            </th>
+            <th>
+                <input type="radio" name="week" ng-value=5 ng-model="week" value=5>五
+            </th>
+            <th>
+                <input type="radio" name="week" ng-value=6 ng-model="week" value=6>六
+            </th>
+            <th>
+                <input type="radio" name="week" ng-value=7 ng-model="week" value=7>日
+            </th>
+        </tr>
+        <tr ng-hide="irregular">
+            <th colspan="7" style="background: #cccccc;">日期選擇</th>
+        </tr>
+        <tr ng-hide="irregular">
+            <th colspan="7">
+                <input type="text" id="irregular_datepicker" style="width: 100%; text-align: center; border: 0;">
+            </th>
+        </tr>
+        <tr ng-hide="time">
+            <th colspan="7" style="background: #cccccc;">時間選擇</th>
+        </tr>
+        <tr ng-hide="time">
+            <th colspan="3">
+                <input style="width:100%; text-align: center; border: 0;" id="startTime"
+                       placeholder="開始時間">
+            </th>
+            <th colspan="1">至</th>
+            <th colspan="3">
+                <input style="width:100%; text-align: center; border: 0;" id="endTime"
+                       placeholder="結束時間">
+            </th>
+        </tr>
+        <tr ng-hide="irregular">
+            <th colspan="7">
+                <input type="button" ng-click="addDate()" style="width: 100%; font-weight: bold;" value="新增時間">
+            </th>
+        </tr>
+        <tr ng-hide="irregular">
+            <th colspan="7">
+                <div style="width: 100%; height: 100px; overflow: auto;">
+
+                    <div ng-repeat="date in dates"
+                         style="width: auto; background: #96f226; margin: 3px; position: relative; border: solid 1px;">
+                        <div style="width: auto; text-align: left; padding-left: 10px; padding-top: 5px; padding-bottom: 5px;">
+                            日期: {{date.DATE.getFullYear()}}/{{date.DATE.getMonth()+1}}/{{date.DATE.getDate()}} 時間:
+                            {{date.START.HOURS}}:{{date.START.MINUTES}} - {{date.END.HOURS}}:{{date.END.MINUTES}}
+                        </div>
+                        <div ng-click="delDate(date)" style="position: absolute; top: 5px; right: 10px; cursor: pointer;">
+                            X
+                        </div>
+                    </div>
+
+                </div>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">教師名單</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <div style="width: 100%; height: 100px; overflow: auto;">
+                    <div ng-repeat="teacher in teachers"
+                         style="width: auto; background: #96f226; margin: 3px; position: relative; border: solid 1px;">
+                        <div style="width: auto; text-align: left; padding-left: 10px; padding-top: 5px; padding-bottom: 5px;">
+                            {{teacher.NAME}}
+                        </div>
+                        <div ng-click="delTeacher(teacher)" style="position: absolute; top: 5px; right: 10px;">
+                            X
+                        </div>
+                    </div>
+                </div>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="5">
+                <select ng-model="selectTeacher" style="width: 100%; height: 100%; border: 0;"> 　
+                    <option ng-repeat="s in list" value="{{s}}">{{s.NAME}}</option>
+                </select>
+            </th>
+            <th colspan="2">
+                <input ng-click="addTeacher()" type="button" value="新增教師" style="width:100%; font-weight: bold;">
+            </th>
+        </tr>
+        <tr>
+            <th colspan="7" style="background: #cccccc;">學生名單</th>
+        </tr>
+        <tr>
+            <th colspan="7">
+                <div style="width: 100%; height: 200px; overflow: auto;">
+                    <div ng-repeat="student in students"
+                         style="width: auto; background: #96f226; margin: 3px; position: relative; border: solid 1px;">
+                        <div style="width: auto; text-align: left; padding-left: 10px; padding-top: 5px; padding-bottom: 5px;">
+                            {{student.NAME}}
+                        </div>
+                        <div ng-click="delStudent(student)" style="position: absolute; top: 5px; right: 10px;">
+                            X
+                        </div>
+                    </div>
+                </div>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="5">
+                <select ng-model="selectStudent" style="width: 100%; height: 100%; border: 0;"> 　
+                    <option ng-repeat="s in list" value="{{s}}">{{s.NAME}}</option>
+                </select>
+            </th>
+            <th colspan="2">
+                <input ng-click="addStudent()" type="button" value="新增學生" style="width:100%; font-weight: bold;">
+            </th>
+        </tr>
+        <tr type="confirm">
+            <th colspan="7">
+                <input id="confirm" ng-click="send()" type="button" value="建立課程" style="width:100%; font-weight: bold;">
+            </th>
+        </tr>
+    </table>
+</div>
+</body>
+</html>
